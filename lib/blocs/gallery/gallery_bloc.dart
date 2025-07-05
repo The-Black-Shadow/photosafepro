@@ -14,9 +14,13 @@ class GalleryBloc extends Bloc<GalleryEvent, GalleryState> {
     on<GalleryStarted>(_onGalleryStarted);
     on<GalleryPhotoAdded>(_onGalleryPhotoAdded);
     on<GalleryPhotoDeleted>(_onGalleryPhotoDeleted);
+    on<GalleryDeleteOriginalConfirmed>(_onDeleteOriginalConfirmed);
   }
 
-  Future<void> _onGalleryStarted(GalleryStarted event, Emitter<GalleryState> emit) async {
+  Future<void> _onGalleryStarted(
+    GalleryStarted event,
+    Emitter<GalleryState> emit,
+  ) async {
     emit(GalleryLoadInProgress());
     try {
       final photos = await photoRepository.getPhotos();
@@ -26,24 +30,48 @@ class GalleryBloc extends Bloc<GalleryEvent, GalleryState> {
     }
   }
 
-  Future<void> _onGalleryPhotoAdded(GalleryPhotoAdded event, Emitter<GalleryState> emit) async {
-    // The UI is likely showing a loading indicator while the user picks a photo.
-    // We can go straight to processing.
+  Future<void> _onGalleryPhotoAdded(
+    GalleryPhotoAdded event,
+    Emitter<GalleryState> emit,
+  ) async {
     try {
-      // Pass the asset from the event directly to the repository.
-      await photoRepository.importPhoto(event.asset);
-      // After importing, refresh the list of photos by triggering the GalleryStarted event.
+      final newPhoto = await photoRepository.importPhoto(event.asset);
+
+      // --- THIS IS THE CORRECTED LOGIC ---
+      // 1. First, tell the UI to show the delete prompt. The listener will catch this.
+      emit(GalleryShowDeletePrompt(newPhoto));
+
+      // 2. Then, trigger the event to refresh the gallery grid in the background.
       add(GalleryStarted());
     } catch (e) {
       emit(GalleryLoadFailure(e.toString()));
     }
   }
 
-  Future<void> _onGalleryPhotoDeleted(GalleryPhotoDeleted event, Emitter<GalleryState> emit) async {
+  Future<void> _onGalleryPhotoDeleted(
+    GalleryPhotoDeleted event,
+    Emitter<GalleryState> emit,
+  ) async {
     try {
-      await photoRepository.deleteVaultPhoto(event.photoId, event.encryptedPath);
-      // After deleting, refresh the list of photos.
+      // Pass all required info to the repository
+      await photoRepository.deleteVaultPhoto(
+        event.photoId,
+        event.encryptedPath,
+        event.encryptedThumbnailPath,
+      );
       add(GalleryStarted());
+    } catch (e) {
+      emit(GalleryLoadFailure(e.toString()));
+    }
+  }
+
+  Future<void> _onDeleteOriginalConfirmed(
+    GalleryDeleteOriginalConfirmed event,
+    Emitter<GalleryState> emit,
+  ) async {
+    try {
+      await photoRepository.deleteOriginalPhoto(event.originalId);
+      // Optionally, you could emit a success message state here
     } catch (e) {
       emit(GalleryLoadFailure(e.toString()));
     }

@@ -35,3 +35,11 @@ class GalleryLoadFailure extends GalleryState {
   @override
   List<Object> get props => [error];
 }
+
+/// Tells the UI to show the delete confirmation prompt for the newly imported photo.
+class GalleryShowDeletePrompt extends GalleryState {
+  final Photo newPhoto;
+  const GalleryShowDeletePrompt(this.newPhoto);
+  @override
+  List<Object> get props => [newPhoto];
+}

@@ -25,9 +25,22 @@ class GalleryPhotoAdded extends GalleryEvent {
 class GalleryPhotoDeleted extends GalleryEvent {
   final int photoId;
   final String encryptedPath;
+  final String encryptedThumbnailPath; // <-- Pass thumbnail path for deletion
 
-  const GalleryPhotoDeleted({required this.photoId, required this.encryptedPath});
+  const GalleryPhotoDeleted({
+    required this.photoId,
+    required this.encryptedPath,
+    required this.encryptedThumbnailPath,
+  });
 
   @override
-  List<Object> get props => [photoId, encryptedPath];
+  List<Object> get props => [photoId, encryptedPath, encryptedThumbnailPath];
+}
+
+/// Triggered when the user confirms they want to delete the original photo.
+class GalleryDeleteOriginalConfirmed extends GalleryEvent {
+  final String originalId;
+  const GalleryDeleteOriginalConfirmed(this.originalId);
+  @override
+  List<Object> get props => [originalId];
 }

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -15,24 +14,29 @@ import '../../utils/encryption_helper.dart';
 class VaultScreen extends StatelessWidget {
   const VaultScreen({super.key});
 
-  void _showDeleteConfirmationDialog(BuildContext context, Photo photo) {
+  // --- NEW DIALOG FOR DELETING THE ORIGINAL ---
+  void _showDeleteOriginalConfirmationDialog(
+    BuildContext context,
+    Photo newPhoto,
+  ) {
     showDialog(
       context: context,
+      barrierDismissible: false, // User must choose an option
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: const Color(0xFF16213e),
           title: const Text(
-            'Delete Photo',
+            'Photo Secured',
             style: TextStyle(color: Colors.white),
           ),
           content: const Text(
-            'Are you sure you want to permanently delete this photo from your vault?',
+            'Delete the original photo from your public gallery?',
             style: TextStyle(color: Colors.white70),
           ),
           actions: <Widget>[
             TextButton(
               child: const Text(
-                'Cancel',
+                'Keep',
                 style: TextStyle(color: Colors.white70),
               ),
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -43,13 +47,14 @@ class VaultScreen extends StatelessWidget {
                 style: TextStyle(color: Color(0xFFe94560)),
               ),
               onPressed: () {
+                // Tell the BLoC to perform the deletion
                 context.read<GalleryBloc>().add(
-                  GalleryPhotoDeleted(
-                    photoId: photo.id!,
-                    encryptedPath: photo.encryptedPath,
-                  ),
+                  GalleryDeleteOriginalConfirmed(newPhoto.originalId),
                 );
                 Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Original photo deleted.')),
+                );
               },
             ),
           ],
@@ -115,83 +120,124 @@ class VaultScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFe94560),
         child: const Icon(Icons.add_photo_alternate_rounded),
       ),
-      body: BlocConsumer<GalleryBloc, GalleryState>(
+      body: BlocListener<GalleryBloc, GalleryState>(
         listener: (context, state) {
           if (state is GalleryLoadFailure) {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('Error: ${state.error}')));
           }
-        },
-        builder: (context, state) {
-          if (state is GalleryLoadInProgress || state is GalleryInitial) {
-            return const Center(child: CircularProgressIndicator());
+          // --- LISTEN FOR THE NEW STATE ---
+          if (state is GalleryShowDeletePrompt) {
+            _showDeleteOriginalConfirmationDialog(context, state.newPhoto);
           }
-          if (state is GalleryLoadSuccess) {
-            if (state.photos.isEmpty) {
-              return const Center(
-                child: Text(
-                  'Your vault is empty.\nTap the + button to add a photo.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
+        },
+        child: BlocBuilder<GalleryBloc, GalleryState>(
+          builder: (context, state) {
+            if (state is GalleryLoadInProgress || state is GalleryInitial) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is GalleryLoadSuccess) {
+              return GridView.builder(
+                padding: const EdgeInsets.all(8.0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8.0,
+                  mainAxisSpacing: 8.0,
                 ),
+                itemCount: state.photos.length,
+                itemBuilder: (context, index) {
+                  final photo = state.photos[index];
+                  return GestureDetector(
+                    onLongPress: () =>
+                        _showDeleteFromVaultDialog(context, photo),
+                    // --- FIX #2: ADD A UNIQUE KEY ---
+                    child: PhotoThumbnail(
+                      key: ValueKey(photo.id), // This fixes the deletion bug
+                      photo: photo,
+                    ),
+                  );
+                },
               );
             }
-            return GridView.builder(
-              padding: const EdgeInsets.all(8.0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
-              ),
-              itemCount: state.photos.length,
-              itemBuilder: (context, index) {
-                final photo = state.photos[index];
-                return GestureDetector(
-                  onLongPress: () =>
-                      _showDeleteConfirmationDialog(context, photo),
-                  child: PhotoThumbnail(photo: photo),
-                );
-              },
-            );
-          }
-          return const Center(child: Text('Something went wrong.'));
-        },
+            return const Center(child: Text('Something went wrong.'));
+          },
+        ),
       ),
     );
   }
 }
 
+// Renamed for clarity
+void _showDeleteFromVaultDialog(BuildContext context, Photo photo) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        backgroundColor: const Color(0xFF16213e),
+        title: const Text(
+          'Delete Photo',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete this photo from your vault?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white70),
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          TextButton(
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFe94560)),
+            ),
+            onPressed: () {
+              // --- UPDATE EVENT WITH NEW PARAMETER ---
+              context.read<GalleryBloc>().add(
+                GalleryPhotoDeleted(
+                  photoId: photo.id!,
+                  encryptedPath: photo.encryptedPath,
+                  encryptedThumbnailPath: photo.encryptedThumbnailPath,
+                ),
+              );
+              Navigator.of(dialogContext).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+// PhotoThumbnail widget remains the same...
 class PhotoThumbnail extends StatefulWidget {
   final Photo photo;
   const PhotoThumbnail({super.key, required this.photo});
-
   @override
   State<PhotoThumbnail> createState() => _PhotoThumbnailState();
 }
 
 class _PhotoThumbnailState extends State<PhotoThumbnail> {
   Future<Uint8List>? _decryptionFuture;
-
   @override
   void initState() {
     super.initState();
     _decryptionFuture = _decryptPhoto();
   }
 
-  // --- THIS DECRYPTION LOGIC IS NOW CORRECTED ---
   Future<Uint8List> _decryptPhoto() async {
     final encryptionHelper = EncryptionHelper();
-    final file = File(widget.photo.encryptedPath);
-
-    // Read the combined encrypted string from the file
+    // --- FIX #1: DECRYPT THE THUMBNAIL, NOT THE FULL IMAGE ---
+    final file = File(widget.photo.encryptedThumbnailPath);
     final encryptedString = await file.readAsString();
-
-    // Decrypt the data using the new helper method
     final decryptedBytes = await encryptionHelper.decryptString(
       encryptedString,
     );
-
     return Uint8List.fromList(decryptedBytes);
   }
 
