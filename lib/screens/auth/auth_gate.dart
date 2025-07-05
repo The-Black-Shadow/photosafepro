@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:photosafepro/blocs/auth/auth_bloc.dart';
+import 'package:photosafepro/blocs/gallery/gallery_bloc.dart';
 import 'package:photosafepro/screens/auth/pin_screen.dart';
+import 'package:photosafepro/screens/vault/vault_screen.dart';
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -26,11 +28,9 @@ class AuthGate extends StatelessWidget {
           );
         }
         if (state is AuthAuthenticated) {
-          // If authenticated, show the main vault gallery (placeholder for now)
-          return Scaffold(
-            appBar: AppBar(title: const Text("My Vault")),
-            body: const Center(child: Text("Welcome! Gallery will be here.")),
-          );
+          // When authenticated, trigger the gallery to load and show the VaultScreen.
+          context.read<GalleryBloc>().add(GalleryStarted());
+          return VaultScreen();
         }
         // Show a loading indicator for any in-progress states
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
