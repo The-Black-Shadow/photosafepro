@@ -43,7 +43,7 @@ dependencies:
   sqflite: ^2.4.2 # Local SQL database for photo metadata
   path: ^1.9.1 # For handling file paths
   path_provider: ^2.1.5 # To find the correct local path to store files
-  flutter_secure_storage: ^4.2.1 # For securely storing the PIN hash and premium status
+  flutter_secure_storage: ^9.2.4 # For securely storing the PIN hash and premium status
   # --- Core Functionality ---
   image_picker: ^1.1.2
   encrypt: ^5.0.3 # For file encryption and decryption
@@ -51,7 +51,7 @@ dependencies:
   # --- Authentication ---
   local_auth: ^2.3.0 # For biometric (fingerprint/Face ID) authentication
   # --- Monetization & Premium ---
-  google_mobile_ads: ^6.0.0
+  #google_mobile_ads: ^6.0.0
 
 dev_dependencies:
   flutter_test:
