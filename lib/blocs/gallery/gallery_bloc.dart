@@ -1,8 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:photosafepro/models/photo.dart';
 import 'package:photosafepro/repositories/photo_repository.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 part 'gallery_event.dart';
 part 'gallery_state.dart';
